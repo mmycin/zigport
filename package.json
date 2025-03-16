@@ -1,10 +1,10 @@
 {
-  "name": "rustport",
-  "version": "1.0.0",
-  "description": "A CLI tool that automatically generates TypeScript FFI bindings for Rust libraries, making it easy to call Rust functions from JavaScript/TypeScript in Bun projects",
+  "name": "zigport",
+  "version": "1.0.3",
+  "description": "A CLI tool that automatically generates TypeScript FFI bindings for Zig libraries, making it easy to call Zig functions from JavaScript/TypeScript in Bun projects",
   "main": "dist/index.js",
   "bin": {
-    "rustport": "./bin/rustport.js"
+    "zigport": "./bin/zigport.js"
   },
   "type": "module",
   "scripts": {
@@ -12,7 +12,7 @@
     "prepublishOnly": "npm run build"
   },
   "keywords": [
-    "rust",
+    "zig",
     "typescript",
     "ffi",
     "bun",

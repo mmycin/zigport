@@ -1,6 +1,6 @@
-# Contributing to RustPort
+# Contributing to zigport
 
-Thank you for your interest in contributing to RustPort! This document provides guidelines and instructions for contributing to the project.
+Thank you for your interest in contributing to zigport! This document provides guidelines and instructions for contributing to the project.
 
 ## Code of Conduct
 
@@ -70,4 +70,4 @@ Feature requests are welcome! Please provide:
 
 ## License
 
-By contributing to RustPort, you agree that your contributions will be licensed under the project's [MIT License](../LICENSE).
+By contributing to zigport, you agree that your contributions will be licensed under the project's [MIT License](../LICENSE).

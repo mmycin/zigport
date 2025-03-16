@@ -11,19 +11,19 @@ interface FunctionSignature {
     returnType: string;
 }
 
-export function parseRustFile(filePath: string): FunctionSignature[] {
+export function parseZigFile(filePath: string): FunctionSignature[] {
     const content = fs.readFileSync(filePath, "utf-8");
     const functions: FunctionSignature[] = [];
 
-    // Regular expression to match #[no_mangle] pub extern "C" fn declarations
+    // Regular expression to match Zig function declarations
     const fnRegex =
-        /#\[no_mangle\]\s+pub\s+extern\s+"C"\s+fn\s+(\w+)\s*\(([^)]*)\)\s*(?:->\s*([^{]+))?\s*\{/g;
+        /export\s+fn\s+(\w+)\s*\(([^)]*)\)\s+([\w*]+)\s*\{/g;
 
     let match;
     while ((match = fnRegex.exec(content)) !== null) {
         const name = match[1];
         const argsStr = match[2].trim();
-        const returnType = match[3]?.trim() || "void";
+        const returnType = match[3]?.trim();
 
         const args: FunctionArg[] = [];
 

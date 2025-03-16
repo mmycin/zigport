@@ -1,54 +1,53 @@
 import fs from "fs-extra";
 import path from "path";
-import { parseRustFile } from "./parser.js";
+import { parseZigFile } from "./parser.js";
 import { glob } from "glob";
 
 export async function generateBindings(libDir: string): Promise<void> {
     // Create mod directory if it doesn't exist
     const modDir = path.join(libDir, "mod");
-    fs.ensureDirSync(modDir);
+    await fs.ensureDir(modDir);
 
-    // Get all Rust files
-    const rustFiles = await glob(`${libDir}/rs/**/*.rs`);
+    // Get all Zig files
+    const zigFiles = await glob(`${libDir}/zig/**/*.zig`);
 
     // Track all exports for index.ts
     const exports: Record<string, string[]> = {};
 
-    // Process each Rust file
-    for (const rustFile of rustFiles) {
-        const fileName = path.basename(rustFile, ".rs");
-        const relativePath = path.relative(path.join(libDir, "rs"), rustFile);
+    // Process each Zig file
+    for (const zigFile of zigFiles) {
+        const fileName = path.basename(zigFile, ".zig");
+        const relativePath = path.relative(path.join(libDir, "zig"), zigFile);
         const relativeDir = path.dirname(relativePath);
 
         // Create subdirectories in mod/ if needed
         const targetDir = path.join(modDir, relativeDir);
-        fs.ensureDirSync(targetDir);
+        await fs.ensureDir(targetDir);
 
-        // Parse Rust file to extract function signatures
-        const functions = parseRustFile(rustFile);
+        // Parse Zig file to extract function signatures
+        const functions = parseZigFile(zigFile);
 
         if (functions.length === 0) {
-            console.warn(`Warning: No exported functions found in ${rustFile}`);
+            console.warn(`Warning: No exported functions found in ${zigFile}`);
             continue;
         }
 
         // Generate TypeScript binding file
         const tsFilePath = path.join(targetDir, `${fileName}.ts`);
         const tsContent = generateTypeScriptBinding(fileName, functions);
-        fs.writeFileSync(tsFilePath, tsContent);
+        await fs.writeFile(tsFilePath, tsContent, { encoding: 'utf8' });
 
         // Track exports for index.ts
-        const modulePath = path.join(
-            relativeDir === "." ? "" : relativeDir,
-            fileName
-        );
-        const importPath = `./${path.join("mod", modulePath)}`;
+        const modulePath = path
+            .join(relativeDir === "." ? "" : relativeDir, fileName)
+            .replace(/\\/g, "/");
+        const importPath = `./${path.join("mod", modulePath).replace(/\\/g, "/")}`;
 
         exports[importPath] = functions.map((fn) => fn.name);
     }
 
     // Generate index.ts
-    generateIndexFile(libDir, exports);
+    await generateIndexFile(libDir, exports);
 }
 
 function generateTypeScriptBinding(
@@ -59,10 +58,14 @@ function generateTypeScriptBinding(
         returnType: string;
     }>
 ): string {
-    let content = `import { dlopen, FFIType, suffix } from "bun:ffi";\n\n`;
-    content += `const BASE_DIR = "lib/bin";\n\n`;
+    let content = `import { dlopen, FFIType, suffix } from "bun:ffi";
+import path from "path";
 
-    // Map Rust types to FFI types
+const BASE_DIR = process.cwd();
+const binPath = path.join(BASE_DIR, "/lib/bin");
+`;
+
+    // Map Zig types to FFI types
     const typeMapping: Record<string, string> = {
         u8: "u8",
         u16: "u16",
@@ -82,45 +85,49 @@ function generateTypeScriptBinding(
     };
 
     // First create the FFI binding
-    content += `const lib = dlopen(\`\${BASE_DIR}/${fileName}.\${suffix}\`, {\n`;
+    content += `const lib = dlopen(path.join(binPath, \`${fileName}.\${suffix}\`), {
+`;
 
+    // Generate the FFI function bindings
     for (const fn of functions) {
-        content += `  ${fn.name}: {\n`;
-        content += `    args: [${fn.args
-            .map((arg) => `FFIType.${typeMapping[arg.type] || "u64"}`)
-            .join(", ")}],\n`;
-        content += `    returns: FFIType.${
-            typeMapping[fn.returnType] || "u64"
-        },\n`;
-        content += `  },\n`;
+        content += `  ${fn.name}: {
+    args: [${fn.args
+        .map((arg) => `FFIType.${typeMapping[arg.type] || "u64"}`)
+        .join(", ")}],
+    returns: FFIType.${typeMapping[fn.returnType] || "u64"},
+  },
+`;
     }
 
-    content += `});\n\n`;
+    content += `});
+
+`;
 
     // Then export each function individually
     for (const fn of functions) {
-        content += `export const ${fn.name} = lib.symbols.${fn.name};\n`;
+        content += `export const ${fn.name} = lib.symbols.${fn.name};
+`;
     }
 
     return content;
 }
 
-function generateIndexFile(
+async function generateIndexFile(
     libDir: string,
     exports: Record<string, string[]>
-): void {
+): Promise<void> {
     let content = "";
 
-    // Generate imports
-    for (const [importPath, functionNames] of Object.entries(exports)) {
-        const moduleName = path.basename(importPath);
-        
-        // Append to content instead of overwriting it
-        content += `export * from "./mod/${moduleName}";\n`;
+    // Generate imports with proper relative paths
+    for (const [modulePath, functionNames] of Object.entries(exports)) {
+        // Add export statement with the correct path
+        content += `export * from "${modulePath}";
+`;
     }
 
     content += "\n";
 
     // Write index.ts
-    fs.writeFileSync(path.join(libDir, "index.ts"), content);
+    const indexFilePath = path.join(libDir, "index.ts");
+    await fs.writeFile(indexFilePath, content, { encoding: "utf8" });
 }

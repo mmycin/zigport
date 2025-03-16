@@ -9,18 +9,18 @@ export function cli(args: string[]) {
     const program = new Command();
 
     program
-        .name("rustport")
+        .name("zigport")
         .description(
-            "Generate TypeScript FFI bindings for Rust libraries using Bun"
+            "Generate TypeScript FFI bindings for Zig libraries using Bun"
         )
         .version("1.0.1");
 
     program
         .command("generate")
-        .description("Generate TypeScript bindings for Rust files")
+        .description("Generate TypeScript bindings for Zig files")
         .argument(
             "<dir>",
-            "Directory containing Rust files (should have an rs/ subdirectory)"
+            "Directory containing Zig files (should have a zig/ subdirectory)"
         )
         .action(async (dir: string) => {
             try {
@@ -34,25 +34,23 @@ export function cli(args: string[]) {
                     process.exit(1);
                 }
 
-                // Check if rs/ subdirectory exists
-                const rsDir = path.join(libDir, "rs");
-                if (!fs.existsSync(rsDir)) {
+                // Check if zig/ subdirectory exists
+                const zigDir = path.join(libDir, "zig");
+                if (!fs.existsSync(zigDir)) {
                     console.error(
                         chalk.red(
-                            `Error: ${rsDir} directory not found. Make sure your Rust files are in the rs/ subdirectory.`
+                            `Error: ${zigDir} directory not found. Make sure your Zig files are in the zig/ subdirectory.`
                         )
                     );
                     process.exit(1);
                 }
 
                 console.log(
-                    chalk.blue(
-                        `Generating bindings for Rust files in ${rsDir}...`
-                    )
+                    chalk.blue(`Generating bindings for Zig files in ${zigDir}...`)
                 );
 
-                // Compile Rust files
-                await compileRustFiles(libDir);
+                // Compile Zig files
+                await compileZigFiles(libDir);
 
                 // Generate TypeScript bindings
                 await generateBindings(libDir);
@@ -106,7 +104,7 @@ export function cli(args: string[]) {
     program.parse(args);
 }
 
-async function compileRustFiles(libDir: string): Promise<void> {
+async function compileZigFiles(libDir: string): Promise<void> {
     const { execSync } = await import("child_process");
 
     // Create build script content
@@ -118,23 +116,24 @@ BIN_DIR="$LIBS_DIR/bin"
 
 mkdir -p "$BIN_DIR"
 
-# Compile Rust files to dynamic libraries
-for file in "$LIBS_DIR"/rs/*.rs; do
-    rustc --crate-type cdylib "$file"
+# Compile Zig files to dynamic libraries (DLLs)
+for file in "$LIBS_DIR"/zig/*.zig; do
+    [ -e "$file" ] || continue  # Skip if no .zig files exist
+    output_name="\${file%.zig}.dll"  # Change extension to .dll
+    zig build-lib -dynamic "$file" -target x86_64-windows
 done
 
-# Cleanup and move binaries
-find "./" -type f -name "*.dll.a" -delete
-find "./" -type f -name "*.dll.exp" -delete
-find "./" -type f -name "*.dll.lib" -delete
-find "./" -type f -name "*.pdb" -delete
+# Clean up unnecessary files
+find "./" -type f \\( -name "*.dll.a" -o -name "*.dll.obj" -o -name "*.lib" -o -name "*.pdb" \\) -delete
+
+# Move all .dll files to libs/bin/
 find "./" -type f -name "*.dll" -exec mv {} "$BIN_DIR" \\;
-find "./" -type f -name "*.so" -exec mv {} "$BIN_DIR" \\;
-find "./" -type f -name "*.dylib" -exec mv {} "$BIN_DIR" \\;
+
+echo "Compilation and cleanup completed successfully!"
 `;
 
     // Write temporary build script
-    const tempScriptPath = path.join(process.cwd(), "rustport-temp-build.sh");
+    const tempScriptPath = path.join(process.cwd(), "zigport-temp-build.sh");
     fs.writeFileSync(tempScriptPath, buildScript, { mode: 0o755 });
 
     try {

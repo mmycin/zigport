@@ -5,4 +5,4 @@ export * from "./parser.js";
 export * from "./utils.js";
 
 // This allows importing the package programmatically
-// Example: import { generateBindings } from 'rustport';
+// Example: import { generateBindings } from 'zigport';

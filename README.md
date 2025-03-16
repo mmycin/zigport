@@ -1,105 +1,106 @@
-# RustPort
+# zigport
 
-RustPort is a command-line tool that automates the generation of TypeScript Foreign Function Interface (FFI) bindings for Rust libraries. It simplifies the process of calling Rust functions from JavaScript/TypeScript, making it an excellent choice for Bun-based projects that require high-performance Rust functions.
+`zigport` is a command-line tool that automates the generation of TypeScript Foreign Function Interface (FFI) bindings for **Zig** libraries. It simplifies the process of calling Zig functions from JavaScript/TypeScript, making it an excellent choice for **Bun**-based projects that require high-performance Zig functions.
 
-## Why RustPort?
+## Why zigport?
 
-- **Automated Rust FFI Binding Generation**: No need to manually write bindings; RustPort handles it for you.
+- **Automated Zig FFI Binding Generation**: No need to manually write bindings; `zigport` handles it for you.
 - **Seamless Integration with Bun**: Works effortlessly with Bun's FFI capabilities.
-- **Efficient Type Mapping**: Maps Rust types to TypeScript with minimal effort.
+- **Efficient Type Mapping**: Maps Zig types to TypeScript with minimal effort.
 - **Simple CLI Interface**: Generate and clean bindings with a single command.
 
 ## Installation
 
-RustPort can be installed globally using `npm`, `yarn`, or `bun`:
+`zigport` can be installed globally using `npm`, `yarn`, or `bun`:
 
 ```bash
 # Using npm
-npm install -g rustport
+npm install -g zigport
 
 # Using yarn
-yarn global add rustport
+yarn global add zigport
 
 # Using bun
-bun add -g rustport
+bun add -g zigport
 ```
 
 ## Getting Started
 
-To use RustPort, follow these steps:
+To use `zigport`, follow these steps:
 
 ### 1. Set Up Your Project
 
-First, create a `lib/` directory in your project root. This directory will store the generated bindings and compiled Rust libraries.
+Create a `lib/` directory in your project root. This directory will store the generated bindings and compiled Zig libraries.
 
-Inside `lib/`, create an `rs/` subdirectory where you will place your Rust source files.
+Inside `lib/`, create an `zig/` subdirectory where you will place your Zig source files.
 
 ```bash
-mkdir -p lib/rs
+mkdir -p lib/zig
 ```
 
-### 2. Write Your Rust Code
+### 2. Write Your Zig Code
 
-Inside `lib/rs/`, create a Rust source file, e.g., `hello.rs`, with the following content:
+Inside `lib/zig/`, create a Zig source file (e.g., `hello.zig`) with the following content:
 
-```rust
-#[no_mangle]
-pub extern "C" fn say_hello(name: *const u8) {
-    println!("Hello, {}!", unsafe { std::ffi::CStr::from_ptr(name).to_str().unwrap() });
+```zig
+const std = @import("std");
+
+export fn say_hello(name: [*]const u8) void {
+    std.debug.print("Hello, {s}!\n", .{"World"});
 }
 ```
 
 ### 3. Generate Bindings
 
-Now, let RustPort do its magic. Run:
+Now, let `zigport` do its magic. Run:
 
 ```bash
-rustport generate lib/
+zigport generate lib/
 ```
 
 This will:
-- Compile Rust files into dynamic libraries (`.so`/`.dll`/`.dylib` depending on the platform).
+- Compile Zig files into dynamic libraries (`.so`, `.dll`, `.dylib` depending on your platform).
 - Generate TypeScript FFI bindings.
 - Create an `index.ts` file inside `lib/`.
 
-### 4. Use Rust Functions in TypeScript
+### 4. Use Zig Functions in TypeScript
 
-Once the bindings are generated, you can import and use the Rust functions in your JavaScript/TypeScript code:
+Once the bindings are generated, you can import and use the Zig functions in your JavaScript/TypeScript code:
 
 ```typescript
 import { sayHello } from "./lib";
 
-sayHello("World");
+sayHello();
 ```
 
-Yes, it’s that easy! Rust speed, Bun simplicity—what more do you need?
+Yes, it’s that easy! Zig speed, Bun simplicity—what more do you need?
 
 ---
 
 ## CLI Commands
 
-### `rustport generate <path>`
-Generates Rust FFI bindings and compiles Rust files to dynamic libraries.
+### `zigport generate <path>`
+Generates Zig FFI bindings and compiles Zig files into dynamic libraries.
 
 Example:
 ```bash
-rustport generate lib/
+zigport generate lib/
 ```
 
-### `rustport clean`
-Removes generated files, including compiled Rust libraries and TypeScript bindings.
+### `zigport clean`
+Removes generated files, including compiled Zig libraries and TypeScript bindings.
 
 Example:
 ```bash
-rustport clean
+zigport clean
 ```
 
-### `rustport help`
+### `zigport help`
 Displays the help menu with available commands.
 
 Example:
 ```bash
-rustport help
+zigport help
 ```
 
 ## Advanced Usage
@@ -108,31 +109,34 @@ rustport help
 The generated `index.ts` file can be modified to better suit your project’s needs. You can rename functions, add additional TypeScript types, or provide wrapper functions.
 
 Example (after generating bindings):
+
 ```typescript
-import { sayHello as rustSayHello } from "./lib";
+import { sayHello as zigSayHello } from "./lib";
 
 export function sayHello(name: string) {
-    rustSayHello(name);
+    zigSayHello(name);
 }
 ```
 
 ### Passing and Returning Numbers
-Rust functions can return numbers, making complex calculations super efficient.
+Zig functions can return numbers, making complex calculations super efficient.
 
-#### Rust Code (`math.rs`):
-```rust
-#[no_mangle]
-pub extern "C" fn add_numbers(a: i32, b: i32) -> i32 {
-    a + b
+#### Zig Code (`math.zig`):
+
+```zig
+export fn add_numbers(a: i32, b: i32) i32 {
+    return a + b;
 }
 ```
 
 Generate bindings:
+
 ```bash
-rustport generate lib/
+zigport generate lib/
 ```
 
 #### TypeScript Usage:
+
 ```typescript
 import { addNumbers } from "./lib";
 
@@ -140,84 +144,89 @@ console.log("5 + 3 =", addNumbers(5, 3));
 ```
 
 ### Passing and Returning Strings
-Rust can return strings too! But you need to manage memory properly.
+Zig can return strings too! But you need to manage memory properly.
 
-#### Rust Code (`string_utils.rs`):
-```rust
-use std::ffi::{CString, CStr};
-use std::os::raw::c_char;
+#### Zig Code (`string_utils.zig`):
 
-#[no_mangle]
-pub extern "C" fn greet(name: *const c_char) -> *mut c_char {
-    let c_str = unsafe { CStr::from_ptr(name) };
-    let r_str = format!("Hello, {}!", c_str.to_str().unwrap());
-    CString::new(r_str).unwrap().into_raw()
+```zig
+const std = @import("std");
+
+export fn greet(name: [*]const u8) [*]const u8 {
+    const message = "Hello, " ++ name ++ "!";
+    return message;
 }
 ```
 
 Generate bindings:
+
 ```bash
-rustport generate lib/
+zigport generate lib/
 ```
 
 #### TypeScript Usage:
+
 ```typescript
 import { greet } from "./lib";
 
 console.log(greet("Alice"));
 ```
 
-Yes, Rust just greeted Alice from TypeScript. Wild, isn’t it?
+Yes, Zig just greeted Alice from TypeScript. Wild, isn’t it?
+
+---
 
 ## Troubleshooting
 
-**1. RustPort fails to generate bindings**
-- Ensure that Rust and Cargo are installed.
-- Check that the `lib/rs/` directory contains valid Rust files.
-- Run `cargo build` inside `lib/rs/` to diagnose compilation issues.
+### 1. `zigport` fails to generate bindings
+- Ensure that **Zig** is installed.
+- Check that the `lib/zig/` directory contains valid Zig files.
+- Run `zig build` inside `lib/zig/` to diagnose compilation issues.
 
-**2. TypeScript FFI calls fail**
-- Ensure that the Rust functions are properly exported using `#[no_mangle]`.
+### 2. TypeScript FFI calls fail
+- Ensure that the Zig functions are properly exported using `export`.
 - Verify that the correct function signatures are used in TypeScript.
 
-**3. Dynamic libraries are not loading**
-- On Windows, ensure that `.dll` files are in the correct directory.
-- On macOS, use `install_name_tool` to set the correct library paths.
-- On Linux, check `LD_LIBRARY_PATH`.
+### 3. Dynamic libraries are not loading
+- On **Windows**, ensure that `.dll` files are in the correct directory.
+- On **macOS**, use `install_name_tool` to set the correct library paths.
+- On **Linux**, check `LD_LIBRARY_PATH`.
 
 ## Example Project
 
-Here's a simple Bun project using RustPort:
+Here’s a simple Bun project using `zigport`:
 
 ### Directory Structure
 ```
 my-project/
 ├── lib/
-│   ├── index.ts
-│   ├── rs/
-│   │   ├── hello.rs
-│   │   ├── math.rs
-│   │   ├── string_utils.rs
-│   │   ├── Cargo.toml
+│   ├── zig/
+│   │   ├── hello.zig
+│   │   ├── math.zig
+│   │   ├── string_utils.zig
+│   │   ├── build.zig
 ├── src/
 │   ├── main.ts
 ├── package.json
 ```
 
 ### `main.ts`
+
 ```typescript
 import { sayHello, addNumbers, greet } from "../lib";
 
-sayHello("RustPort User");
+sayHello("zigport User");
 console.log(addNumbers(10, 20));
 console.log(greet("Bob"));
 ```
 
+---
+
 ## Contributing
 
-We welcome contributions! Feel free to open issues or submit pull requests on GitHub. If RustPort made your life easier, buy us a virtual coffee! ☕
+We welcome contributions! Feel free to open issues or submit pull requests on GitHub. If `zigport` made your life easier, buy us a virtual coffee! ☕️
 
 ## License
 
 This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
 
+---
