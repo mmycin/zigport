@@ -129,5 +129,5 @@ async function generateIndexFile(
 
     // Write index.ts
     const indexFilePath = path.join(libDir, "index.ts");
-    await fs.writeFile(indexFilePath, content, { encoding: "utf8" });
+    await fs.appendFile(indexFilePath, content, { encoding: "utf8" });
 }
