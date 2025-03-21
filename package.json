@@ -1,6 +1,6 @@
 {
   "name": "zigport",
-  "version": "1.2.1",
+  "version": "1.2.2",
   "description": "A CLI tool that automatically generates TypeScript FFI bindings for Zig libraries, making it easy to call Zig functions from JavaScript/TypeScript in Bun projects",
   "main": "dist/index.js",
   "bin": {
