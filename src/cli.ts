@@ -11,7 +11,7 @@ export function cli(args: string[]) {
     program
         .name("zigport")
         .description(
-            "Generate TypeScript FFI bindings for Zig libraries using Bun"
+            "Generate TypeScript FFI bindings for Zig libraries using Bun. Created by Mycin"
         )
         .version("1.0.1");
 
@@ -58,6 +58,26 @@ export function cli(args: string[]) {
                 console.log(
                     chalk.green("✓ Successfully generated TypeScript bindings!")
                 );
+                console.log(
+                    chalk.blue(
+                        `You can now import your Zig functions in your TypeScript code using the following import statement:`
+                    )
+                );
+
+                console.log(
+                    chalk.cyan("\nimport") +
+                        " " + // Cyan for keywords
+                        chalk.yellow("{") +
+                        " " + // Yellow for `{`
+                        chalk.blue("FUNCTIONNAME") +
+                        " " + // Bright blue function
+                        chalk.yellow("}") +
+                        " " + // Yellow for `}`
+                        chalk.cyan("from") +
+                        " " + // Cyan for keywords
+                        chalk.magenta('"./lib";\n') // Magenta for string
+                );
+
             } catch (error) {
                 console.error(
                     chalk.red(
@@ -107,6 +127,7 @@ export function cli(args: string[]) {
 async function compileZigFiles(libDir: string): Promise<void> {
     const { execSync } = await import("child_process");
 
+    const platform = process.platform == "win32" ? "windows" : "linux";
     // Create build script content
     const buildScript = `
 #!/bin/bash
@@ -120,7 +141,7 @@ mkdir -p "$BIN_DIR"
 for file in "$LIBS_DIR"/zig/*.zig; do
     [ -e "$file" ] || continue  # Skip if no .zig files exist
     output_name="\${file%.zig}.dll"  # Change extension to .dll
-    zig build-lib -dynamic "$file" -target x86_64-windows
+    zig build-lib -dynamic "$file" -target x86_64-${platform}
 done
 
 # Clean up unnecessary files

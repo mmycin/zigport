@@ -1,17 +1,18 @@
-# zigport
+# Zigport
 
-`zigport` is a command-line tool that automates the generation of TypeScript Foreign Function Interface (FFI) bindings for **Zig** libraries. It simplifies the process of calling Zig functions from JavaScript/TypeScript, making it an excellent choice for **Bun**-based projects that require high-performance Zig functions.
+`zigport` is an NPM package as well as a command-line tool that automates the generation of TypeScript Foreign Function Interface (FFI) bindings for **Zig** libraries created by Tahcin Ul Karim (Mycin). It simplifies the process of calling Zig functions from JavaScript/TypeScript, making it an excellent choice for **Bun**-based projects that require high-performance Zig functions. Yes, you can now summon Zig speed into your Bun app without breaking a sweat!
+---
 
 ## Why zigport?
 
-- **Automated Zig FFI Binding Generation**: No need to manually write bindings; `zigport` handles it for you.
-- **Seamless Integration with Bun**: Works effortlessly with Bun's FFI capabilities.
-- **Efficient Type Mapping**: Maps Zig types to TypeScript with minimal effort.
-- **Simple CLI Interface**: Generate and clean bindings with a single command.
+- **Automated Zig FFI Binding Generation**: No need to manually write bindings; `zigport` does the heavy lifting for you.
+- **Seamless Integration with Bun**: Works like magic with Bun’s FFI capabilities.
+- **Efficient Type Mapping**: Zig types get mapped to TypeScript with zero headaches.
+- **Simple CLI Interface**: Generate and clean bindings with a single command. No over-engineered nonsense.
 
 ## Installation
 
-`zigport` can be installed globally using `npm`, `yarn`, or `bun`:
+You can install `zigport` globally using `npm`, `yarn`, or `bun`:
 
 ```bash
 # Using npm
@@ -26,13 +27,9 @@ bun add -g zigport
 
 ## Getting Started
 
-To use `zigport`, follow these steps:
-
 ### 1. Set Up Your Project
 
-Create a `lib/` directory in your project root. This directory will store the generated bindings and compiled Zig libraries.
-
-Inside `lib/`, create an `zig/` subdirectory where you will place your Zig source files.
+Create a `lib/` directory in your project root. This is where the magic happens.
 
 ```bash
 mkdir -p lib/zig
@@ -45,14 +42,14 @@ Inside `lib/zig/`, create a Zig source file (e.g., `hello.zig`) with the followi
 ```zig
 const std = @import("std");
 
-export fn say_hello(name: [*]const u8) void {
+export fn say_hello() void {
     std.debug.print("Hello, {s}!\n", .{"World"});
 }
 ```
 
 ### 3. Generate Bindings
 
-Now, let `zigport` do its magic. Run:
+Now, let `zigport` do its thing:
 
 ```bash
 zigport generate lib/
@@ -65,7 +62,7 @@ This will:
 
 ### 4. Use Zig Functions in TypeScript
 
-Once the bindings are generated, you can import and use the Zig functions in your JavaScript/TypeScript code:
+Once the bindings are generated, import and use them in your TypeScript code:
 
 ```typescript
 import { sayHello } from "./lib";
@@ -73,7 +70,19 @@ import { sayHello } from "./lib";
 sayHello();
 ```
 
-Yes, it’s that easy! Zig speed, Bun simplicity—what more do you need?
+### 5. Run it!
+Note that for now it only supports **Bun**, but we’re working on supporting Deno and Node.js. For this, you'll need Bun installed on your machine.
+Install Bun using `npm`, `yarn`, or `bun`:  
+```bash
+npm install -g bun
+```
+Now run the file.
+
+```bash
+bun run fileName.ts
+```
+
+Boom. Zig-powered performance, Bun simplicity. Life’s good.
 
 ---
 
@@ -82,7 +91,6 @@ Yes, it’s that easy! Zig speed, Bun simplicity—what more do you need?
 ### `zigport generate <path>`
 Generates Zig FFI bindings and compiles Zig files into dynamic libraries.
 
-Example:
 ```bash
 zigport generate lib/
 ```
@@ -90,7 +98,6 @@ zigport generate lib/
 ### `zigport clean`
 Removes generated files, including compiled Zig libraries and TypeScript bindings.
 
-Example:
 ```bash
 zigport clean
 ```
@@ -98,28 +105,17 @@ zigport clean
 ### `zigport help`
 Displays the help menu with available commands.
 
-Example:
 ```bash
 zigport help
 ```
 
+---
+
 ## Advanced Usage
 
-### Customizing Bindings
-The generated `index.ts` file can be modified to better suit your project’s needs. You can rename functions, add additional TypeScript types, or provide wrapper functions.
-
-Example (after generating bindings):
-
-```typescript
-import { sayHello as zigSayHello } from "./lib";
-
-export function sayHello(name: string) {
-    zigSayHello(name);
-}
-```
-
 ### Passing and Returning Numbers
-Zig functions can return numbers, making complex calculations super efficient.
+
+Zig can return numbers, making complex calculations lightning-fast.
 
 #### Zig Code (`math.zig`):
 
@@ -144,7 +140,8 @@ console.log("5 + 3 =", addNumbers(5, 3));
 ```
 
 ### Passing and Returning Strings
-Zig can return strings too! But you need to manage memory properly.
+
+Zig can return strings too! But memory management is your responsibility.
 
 #### Zig Code (`string_utils.zig`):
 
@@ -171,7 +168,7 @@ import { greet } from "./lib";
 console.log(greet("Alice"));
 ```
 
-Yes, Zig just greeted Alice from TypeScript. Wild, isn’t it?
+Zig just greeted Alice from TypeScript. Mind-blowing, right?
 
 ---
 
@@ -190,6 +187,8 @@ Yes, Zig just greeted Alice from TypeScript. Wild, isn’t it?
 - On **Windows**, ensure that `.dll` files are in the correct directory.
 - On **macOS**, use `install_name_tool` to set the correct library paths.
 - On **Linux**, check `LD_LIBRARY_PATH`.
+
+---
 
 ## Example Project
 
@@ -223,10 +222,15 @@ console.log(greet("Bob"));
 
 ## Contributing
 
-We welcome contributions! Feel free to open issues or submit pull requests on GitHub. If `zigport` made your life easier, buy us a virtual coffee! ☕️
+Love `zigport`? Want to make it even better? Feel free to open issues or submit pull requests on GitHub. If `zigport` saved you hours of headache, consider buying us a virtual coffee ☕️!
+
+---
 
 ## License
 
 This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
 
 ---
+
+Note: Also, check out [RustPort](https://github.com/mmycin/rustport) – a similar tool that generates TypeScript FFI bindings for Rust libraries. Because Rust needs love too!
+

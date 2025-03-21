@@ -35,13 +35,15 @@ export async function generateBindings(libDir: string): Promise<void> {
         // Generate TypeScript binding file
         const tsFilePath = path.join(targetDir, `${fileName}.ts`);
         const tsContent = generateTypeScriptBinding(fileName, functions);
-        await fs.writeFile(tsFilePath, tsContent, { encoding: 'utf8' });
+        await fs.writeFile(tsFilePath, tsContent, { encoding: "utf8" });
 
         // Track exports for index.ts
         const modulePath = path
             .join(relativeDir === "." ? "" : relativeDir, fileName)
             .replace(/\\/g, "/");
-        const importPath = `./${path.join("mod", modulePath).replace(/\\/g, "/")}`;
+        const importPath = `./${path
+            .join("mod", modulePath)
+            .replace(/\\/g, "/")}`;
 
         exports[importPath] = functions.map((fn) => fn.name);
     }
@@ -62,7 +64,7 @@ function generateTypeScriptBinding(
 import path from "path";
 
 const BASE_DIR = process.cwd();
-const binPath = path.join(BASE_DIR, "/lib/bin");
+const binPath = path.join(BASE_DIR, "lib/bin");
 `;
 
     // Map Zig types to FFI types
@@ -84,9 +86,16 @@ const binPath = path.join(BASE_DIR, "/lib/bin");
         cstring: "cstring",
     };
 
-    // First create the FFI binding
-    content += `const lib = dlopen(path.join(binPath, \`${fileName}.\${suffix}\`), {
-`;
+    const platform = process.platform;
+    if (platform === "win32") {
+        content += `const lib = dlopen(\`\${binPath}/${fileName}.\${suffix}\`, {\n`;
+    } else if (platform === "linux") {
+        content += `const lib = dlopen(\`\${binPath}/lib${fileName}.\${suffix}\`, {\n`;
+    } else {
+        throw new Error(
+            `Unsupported platform: ${platform == "darwin" ? "MacOS" : platform}`
+        );
+    }
 
     // Generate the FFI function bindings
     for (const fn of functions) {
