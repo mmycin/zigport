@@ -1,6 +1,7 @@
 # Zigport
 
 `zigport` is an NPM package as well as a command-line tool that automates the generation of TypeScript Foreign Function Interface (FFI) bindings for **Zig** libraries created by Tahcin Ul Karim (Mycin). It simplifies the process of calling Zig functions from JavaScript/TypeScript, making it an excellent choice for **Bun**-based projects that require high-performance Zig functions. Yes, you can now summon Zig speed into your Bun app without breaking a sweat!
+
 ---
 
 ## Why zigport?
