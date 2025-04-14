@@ -13,7 +13,7 @@ export function cli(args: string[]) {
         .description(
             "Generate TypeScript FFI bindings for Zig libraries using Bun. Created by Mycin"
         )
-        .version("1.0.1");
+        .version("1.2.6");
 
     program
         .command("generate")
@@ -126,8 +126,6 @@ export function cli(args: string[]) {
 
 async function compileZigFiles(libDir: string): Promise<void> {
     const { execSync } = await import("child_process");
-
-    const platform = process.platform == "win32" ? "windows" : "linux";
     // Create build script content
     const buildScript = `
 #!/bin/bash
@@ -141,7 +139,7 @@ mkdir -p "$BIN_DIR"
 for file in "$LIBS_DIR"/zig/*.zig; do
     [ -e "$file" ] || continue  # Skip if no .zig files exist
     output_name="\${file%.zig}.dll"  # Change extension to .dll
-    zig build-lib -dynamic "$file" -target x86_64-${platform}
+    zig build-lib "$file" -dynamic -OReleaseFast
 done
 
 # Clean up unnecessary files

@@ -2,6 +2,8 @@ import fs from "fs-extra";
 import path from "path";
 import { parseZigFile } from "./parser.js";
 import { glob } from "glob";
+import prettier from "prettier";
+import { readFileSync } from "fs";
 
 export async function generateBindings(libDir: string): Promise<void> {
     // Create mod directory if it doesn't exist
@@ -128,7 +130,7 @@ async function generateIndexFile(
     let content = "";
 
     // Generate imports with proper relative paths
-    for (const [modulePath, functionNames] of Object.entries(exports)) {
+    for (const [modulePath, _] of Object.entries(exports)) {
         // Add export statement with the correct path
         content += `export * from "${modulePath}";
 `;
@@ -136,7 +138,32 @@ async function generateIndexFile(
 
     content += "\n";
 
+    const benchmarktext = readFileSync(
+        path.join(libDir, "index.ts")
+    ).toString();
+    if (!benchmarktext.includes("export function Benchmark<T>")) {
+        content += `
+        export function Benchmark<T>(label: string, fn: () => T): T {
+    console.time(label);
+    const result = fn();
+    console.timeEnd(label);
+    return result;
+}
+        `;
+    } else {
+        content += "\n";
+    }
+
+    const finalText = benchmarktext + content;
+    const formatted = await prettier.format(finalText, {
+        trailingComma: "es5",
+        parser: "typescript",
+        semi: true,
+        singleQuote: false,
+        tabWidth: 4,
+        bracketSpacing: true,
+    });
     // Write index.ts
     const indexFilePath = path.join(libDir, "index.ts");
-    await fs.appendFile(indexFilePath, content, { encoding: "utf8" });
+    await fs.writeFile(indexFilePath, formatted, { encoding: "utf8" });
 }
