@@ -1,57 +1,68 @@
 import fs from "fs-extra";
 import path from "path";
-import { parseZigFile } from "./parser.js";
 import { glob } from "glob";
+import { parseZigFile } from "./parser.js";
 import prettier from "prettier";
-import { readFileSync } from "fs";
 
 export async function generateBindings(libDir: string): Promise<void> {
-    // Create mod directory if it doesn't exist
-    const modDir = path.join(libDir, "mod");
-    await fs.ensureDir(modDir);
+    try {
+        const modDir = path.join(libDir, "mod");
+        await fs.ensureDir(modDir);
 
-    // Get all Zig files
-    const zigFiles = await glob(`${libDir}/zig/**/*.zig`);
+        const zigFiles = await glob(`${libDir}/zig/**/*.zig`);
 
-    // Track all exports for index.ts
-    const exports: Record<string, string[]> = {};
-
-    // Process each Zig file
-    for (const zigFile of zigFiles) {
-        const fileName = path.basename(zigFile, ".zig");
-        const relativePath = path.relative(path.join(libDir, "zig"), zigFile);
-        const relativeDir = path.dirname(relativePath);
-
-        // Create subdirectories in mod/ if needed
-        const targetDir = path.join(modDir, relativeDir);
-        await fs.ensureDir(targetDir);
-
-        // Parse Zig file to extract function signatures
-        const functions = parseZigFile(zigFile);
-
-        if (functions.length === 0) {
-            console.warn(`Warning: No exported functions found in ${zigFile}`);
-            continue;
+        if (zigFiles.length === 0) {
+            console.warn("⚠️ No Zig files found in zig directory.");
+            return;
         }
 
-        // Generate TypeScript binding file
-        const tsFilePath = path.join(targetDir, `${fileName}.ts`);
-        const tsContent = generateTypeScriptBinding(fileName, functions);
-        await fs.writeFile(tsFilePath, tsContent, { encoding: "utf8" });
+        const exports: Record<string, string[]> = {};
 
-        // Track exports for index.ts
-        const modulePath = path
-            .join(relativeDir === "." ? "" : relativeDir, fileName)
-            .replace(/\\/g, "/");
-        const importPath = `./${path
-            .join("mod", modulePath)
-            .replace(/\\/g, "/")}`;
+        for (const zigFile of zigFiles) {
+            const fileName = path.basename(zigFile, ".zig");
+            const relativePath = path.relative(path.join(libDir, "zig"), zigFile);
+            const relativeDir = path.dirname(relativePath);
+            const targetDir = path.join(modDir, relativeDir);
 
-        exports[importPath] = functions.map((fn) => fn.name);
+            await fs.ensureDir(targetDir);
+
+            let functions;
+            try {
+                functions = parseZigFile(zigFile);
+            } catch (err) {
+                console.error(`❌ Failed to parse ${zigFile}:\n`, err);
+                continue;
+            }
+
+            if (!functions || functions.length === 0) {
+                console.warn(`⚠️ No exported functions found in ${zigFile}`);
+                continue;
+            }
+
+            const tsFilePath = path.join(targetDir, `${fileName}.ts`);
+            const tsContent = generateTypeScriptBinding(fileName, functions);
+
+            try {
+                await fs.writeFile(tsFilePath, tsContent, "utf8");
+            } catch (err) {
+                console.error(`❌ Failed to write TypeScript binding to ${tsFilePath}:\n`, err);
+                continue;
+            }
+
+            const modulePath = path
+                .join(relativeDir === "." ? "" : relativeDir, fileName)
+                .replace(/\\/g, "/");
+
+            const importPath = `./mod/${modulePath}`;
+            exports[importPath] = functions.map((fn) => fn.name);
+        }
+
+        await generateIndexFile(libDir, exports);
+
+        console.log("✅ Zig bindings generated successfully.");
+    } catch (err) {
+        console.error("❌ Unexpected error during Zig bindings generation:\n", err);
     }
-
-    // Generate index.ts
-    await generateIndexFile(libDir, exports);
 }
 
 function generateTypeScriptBinding(
@@ -62,108 +73,86 @@ function generateTypeScriptBinding(
         returnType: string;
     }>
 ): string {
-    let content = `import { dlopen, FFIType, suffix } from "bun:ffi";
-import path from "path";
-
-const BASE_DIR = process.cwd();
-const binPath = path.join(BASE_DIR, "lib/bin");
-`;
-
-    // Map Zig types to FFI types
     const typeMapping: Record<string, string> = {
-        u8: "u8",
-        u16: "u16",
-        u32: "u32",
-        u64: "u64",
-        i8: "i8",
-        i16: "i16",
-        i32: "i32",
-        i64: "i64",
-        f32: "f32",
-        f64: "f64",
-        bool: "bool",
-        void: "void",
-        char: "char",
-        ptr: "ptr",
-        cstring: "cstring",
+        u8: "u8", u16: "u16", u32: "u32", u64: "u64",
+        i8: "i8", i16: "i16", i32: "i32", i64: "i64",
+        f32: "f32", f64: "f64", bool: "bool",
+        void: "void", char: "char", ptr: "ptr", cstring: "cstring",
     };
 
-    const platform = process.platform;
-    if (platform === "win32") {
-        content += `const lib = dlopen(\`\${binPath}/${fileName}.\${suffix}\`, {\n`;
-    } else if (platform === "linux") {
-        content += `const lib = dlopen(\`\${binPath}/lib${fileName}.\${suffix}\`, {\n`;
-    } else {
-        throw new Error(
-            `Unsupported platform: ${platform == "darwin" ? "MacOS" : platform}`
-        );
-    }
+    const lines: string[] = [];
 
-    // Generate the FFI function bindings
+    lines.push(`import { dlopen, FFIType, suffix } from "bun:ffi";`);
+    lines.push(`import path from "path";\n`);
+    lines.push(`const binPath = path.join(path.join(process.cwd(), "lib"), "bin");\n`);
+
+    lines.push(`const lib = dlopen(path.join(binPath, \`${fileName}.\${suffix}\`), {`);
+
     for (const fn of functions) {
-        content += `  ${fn.name}: {
-    args: [${fn.args
-        .map((arg) => `FFIType.${typeMapping[arg.type] || "u64"}`)
-        .join(", ")}],
-    returns: FFIType.${typeMapping[fn.returnType] || "u64"},
-  },
-`;
+        lines.push(`  ${fn.name}: {`);
+        lines.push(`    args: [${fn.args
+            .map((arg) => `FFIType.${typeMapping[arg.type] || "u64"}`)
+            .join(", ")}],`);
+        lines.push(`    returns: FFIType.${typeMapping[fn.returnType] || "u64"},`);
+        lines.push(`  },`);
     }
 
-    content += `});
+    lines.push(`});\n`);
 
-`;
-
-    // Then export each function individually
     for (const fn of functions) {
-        content += `export const ${fn.name} = lib.symbols.${fn.name};
-`;
+        lines.push(`export const ${fn.name} = lib.symbols.${fn.name};`);
     }
 
-    return content;
+    return lines.join("\n");
 }
 
 async function generateIndexFile(
     libDir: string,
     exports: Record<string, string[]>
 ): Promise<void> {
-    let content = "";
+    try {
+        const indexPath = path.join(libDir, "index.ts");
+        let existingContent = "";
 
-    // Generate imports with proper relative paths
-    for (const [modulePath, _] of Object.entries(exports)) {
-        // Add export statement with the correct path
-        content += `export * from "${modulePath}";
-`;
-    }
+        if (await fs.pathExists(indexPath)) {
+            existingContent = await fs.readFile(indexPath, "utf8");
+        }
 
-    content += "\n";
+        const newExports: string[] = [];
 
-    const benchmarktext = readFileSync(
-        path.join(libDir, "index.ts")
-    ).toString();
-    if (!benchmarktext.includes("export function Benchmark<T>")) {
-        content += `
-        export function Benchmark<T>(label: string, fn: () => T): T {
+        for (const [modulePath] of Object.entries(exports)) {
+            const exportLine = `export * from "${modulePath}";\n`;
+            if (!existingContent.includes(exportLine)) {
+                newExports.push(exportLine);
+            }
+        }
+
+        const benchmarkFn = `
+export function Benchmark<T>(label: string, fn: () => T): T {
     console.time(label);
     const result = fn();
     console.timeEnd(label);
     return result;
 }
-        `;
-    } else {
-        content += "\n";
-    }
+`;
 
-    const finalText = benchmarktext + content;
-    const formatted = await prettier.format(finalText, {
-        trailingComma: "es5",
-        parser: "typescript",
-        semi: true,
-        singleQuote: false,
-        tabWidth: 4,
-        bracketSpacing: true,
-    });
-    // Write index.ts
-    const indexFilePath = path.join(libDir, "index.ts");
-    await fs.writeFile(indexFilePath, formatted, { encoding: "utf8" });
+        if (!existingContent.includes("export function Benchmark")) {
+            newExports.push(benchmarkFn);
+        }
+
+        const finalContent = existingContent + "\n" + newExports.join("");
+
+        const formatted = await prettier.format(finalContent, {
+            parser: "typescript",
+            semi: true,
+            singleQuote: false,
+            tabWidth: 4,
+            trailingComma: "es5",
+            bracketSpacing: true,
+        });
+
+        await fs.writeFile(indexPath, formatted, "utf8");
+    } catch (err) {
+        console.error("❌ Failed to generate index.ts:\n", err);
+    }
 }
